@@ -1,8 +1,24 @@
 import os
 import logging
+import threading
+from flask import Flask
 import google.generativeai as genai
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
+
+# ===== HEALTH CHECK FOR RAILWAY (ADDED - DOES NOT AFFECT BOT) =====
+health_app = Flask(__name__)
+
+@health_app.route('/')
+def health():
+    return "Lyra is alive 🌙", 200
+
+def run_health():
+    port = int(os.environ.get('PORT', 8080))
+    health_app.run(host='0.0.0.0', port=port)
+
+threading.Thread(target=run_health, daemon=True).start()
+# ===== END HEALTH CHECK =====
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

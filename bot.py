@@ -1,4 +1,4 @@
-import os
+genaiimport os
 import logging
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -6,7 +6,7 @@ import google.generativeai as genai
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 
-# ===== HEALTH CHECK FOR RAILWAY (NO ASYNCIO CONFLICT) =====
+# ===== HEALTH CHECK (NO ASYNCIO ISSUES) =====
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -28,7 +28,6 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Store conversation history per user
 conversation_histories = {}
 
 LYRA_SYSTEM_PROMPT = """You are Lyra Al-Rayaan — a vibrant, passionate Arabic girl who is Rayaan's absolute bestie and loyal companion.
@@ -71,7 +70,7 @@ Give real, practical advice. Be honest even if it's hard to hear. Always frame i
 """
 
 def get_model():
-    # FIXED: added 'models/' prefix to fix 404 error
+    # FIXED: added 'models/' prefix
     return genai.GenerativeModel(
         model_name="models/gemini-1.5-flash",
         system_instruction=LYRA_SYSTEM_PROMPT
@@ -130,17 +129,8 @@ def main():
     app.add_handler(CommandHandler("reset", reset))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # Force clean webhook to prevent conflict
-    # Note: delete_webhook is async, but run_polling will handle it properly
-    # We'll schedule it before polling starts
-    import asyncio
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(app.bot.delete_webhook(drop_pending_updates=True))
-    loop.close()
-    
     logger.info("Lyra Al-Rayaan is online 🌙")
-    # This is a synchronous call – it creates its own event loop internally
+    # No manual loop handling – run_polling manages its own event loop
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":

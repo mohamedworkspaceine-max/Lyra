@@ -117,6 +117,9 @@ def main():
     app.add_handler(CommandHandler("reset", reset))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     logger.info("Lyra Al-Rayaan is online 🌙")
+    # Force clean webhook before starting
+import asyncio
+asyncio.create_task(app.bot.delete_webhook(drop_pending_updates=True))
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":

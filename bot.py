@@ -71,7 +71,7 @@ Give real, practical advice. Be honest even if it's hard to hear. Always frame i
 
 def get_model():
     return genai.GenerativeModel(
-        model_name="models/gemini-1.5-flash",
+        model_name="gemini-pro",  # Fixed: working model
         system_instruction=LYRA_SYSTEM_PROMPT
     )
 

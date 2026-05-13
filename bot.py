@@ -1,4 +1,4 @@
-genaiimport os
+import os
 import logging
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -6,7 +6,7 @@ import google.generativeai as genai
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 
-# ===== HEALTH CHECK (NO ASYNCIO ISSUES) =====
+# ===== HEALTH CHECK =====
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -70,7 +70,6 @@ Give real, practical advice. Be honest even if it's hard to hear. Always frame i
 """
 
 def get_model():
-    # FIXED: added 'models/' prefix
     return genai.GenerativeModel(
         model_name="models/gemini-1.5-flash",
         system_instruction=LYRA_SYSTEM_PROMPT
@@ -130,7 +129,6 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     logger.info("Lyra Al-Rayaan is online 🌙")
-    # No manual loop handling – run_polling manages its own event loop
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":

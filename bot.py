@@ -6,7 +6,7 @@ import google.generativeai as genai
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 
-# ===== HEALTH CHECK FOR RAILWAY (keeps bot alive) =====
+# ===== HEALTH CHECK FOR RAILWAY (NO ASYNCIO CONFLICT) =====
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -80,7 +80,6 @@ def get_model():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     conversation_histories[user_id] = []
-
     await update.message.reply_text(
         "Rayaan! 🌙✨ Wallah finally you're here!\n\nI'm Lyra Al-Rayaan — your bestie, your ride-or-die, your everything 💛\n\nYalla tell me, how are you doing habibi? 😄"
     )
@@ -92,13 +91,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id not in conversation_histories:
         conversation_histories[user_id] = []
 
-    # Add user message to history
     conversation_histories[user_id].append({
         "role": "user",
         "parts": [user_message]
     })
 
-    # Keep last 50 messages for memory
     if len(conversation_histories[user_id]) > 50:
         conversation_histories[user_id] = conversation_histories[user_id][-50:]
 
@@ -111,7 +108,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         lyra_response = response.text
 
-        # Add Lyra's response to history
         conversation_histories[user_id].append({
             "role": "model",
             "parts": [lyra_response]
@@ -128,18 +124,24 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conversation_histories[user_id] = []
     await update.message.reply_text("Khalas, fresh start! 🌙 Yalla talk to me Rayaan 💛")
 
-async def main():
+def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("reset", reset))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # Force clean webhook to prevent "Conflict" error
-    await app.bot.delete_webhook(drop_pending_updates=True)
+    # Force clean webhook to prevent conflict
+    # Note: delete_webhook is async, but run_polling will handle it properly
+    # We'll schedule it before polling starts
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(app.bot.delete_webhook(drop_pending_updates=True))
+    loop.close()
     
     logger.info("Lyra Al-Rayaan is online 🌙")
-    await app.run_polling(drop_pending_updates=True)
+    # This is a synchronous call – it creates its own event loop internally
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()

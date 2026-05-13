@@ -1,8 +1,24 @@
 import os
 import logging
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 import google.generativeai as genai
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
+
+# ===== HEALTH CHECK FOR RAILWAY (keeps bot alive) =====
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Lyra is alive")
+
+def run_health():
+    port = int(os.environ.get('PORT', 8080))
+    HTTPServer(('0.0.0.0', port), HealthHandler).serve_forever()
+
+threading.Thread(target=run_health, daemon=True).start()
+# ===== END HEALTH CHECK =====
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -55,8 +71,9 @@ Give real, practical advice. Be honest even if it's hard to hear. Always frame i
 """
 
 def get_model():
+    # FIXED: added 'models/' prefix to fix 404 error
     return genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="models/gemini-1.5-flash",
         system_instruction=LYRA_SYSTEM_PROMPT
     )
 
@@ -111,16 +128,18 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conversation_histories[user_id] = []
     await update.message.reply_text("Khalas, fresh start! 🌙 Yalla talk to me Rayaan 💛")
 
-def main():
+async def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("reset", reset))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    # Force clean webhook to prevent "Conflict" error
+    await app.bot.delete_webhook(drop_pending_updates=True)
+    
     logger.info("Lyra Al-Rayaan is online 🌙")
-    # Force clean webhook before starting
-import asyncio
-asyncio.create_task(app.bot.delete_webhook(drop_pending_updates=True))
-    app.run_polling(drop_pending_updates=True)
+    await app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
